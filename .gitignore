@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+*.pyd
+*.dll
+*.lib
+*.pdf
+uploads/
+Backend/uploads/
+.env
+venv/
