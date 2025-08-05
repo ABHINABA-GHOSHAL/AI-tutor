@@ -32,6 +32,7 @@ const History = () => {
 
   const [summarizerHistory, setSummarizerHistory] = useState([]);
   const [quizHistory, setQuizHistory] = useState([]);
+  const [flashcardHistory, setFlashcardHistory] = useState([]); // NEW
   const [editingItem, setEditingItem] = useState<{ type: string; id: string } | null>(null);
   const [newName, setNewName] = useState("");
 
@@ -46,6 +47,9 @@ const History = () => {
         const data = await res.json();
 
         const summaries = data.history.filter((item: any) => item.type === "summarizer");
+        const quizzes = data.history.filter((item: any) => item.type === "quiz");
+        const flashcards = data.history.filter((item: any) => item.type === "flashcards"); // NEW
+
         setSummarizerHistory(
           summaries.map((item: any) => ({
             id: item._id,
@@ -55,7 +59,6 @@ const History = () => {
           }))
         );
 
-        const quizzes = data.history.filter((item: any) => item.type === "quiz");
         setQuizHistory(
           quizzes.map((item: any) => ({
             id: item._id,
@@ -64,6 +67,15 @@ const History = () => {
             type: "PDF",
           }))
         );
+
+        setFlashcardHistory(
+          flashcards.map((item: any) => ({
+            id: item._id,
+            name: item.file_name,
+            date: new Date(item.timestamp).toLocaleDateString(),
+            type: "PDF",
+          }))
+        ); // NEW
       } catch (err) {
         console.error("Failed to fetch history", err);
       }
@@ -87,7 +99,11 @@ const History = () => {
       setQuizHistory(prev =>
         prev.map(item => item.id === id ? { ...item, name: newName } : item)
       );
-    }
+    } else if (type === "flashcards") {
+      setFlashcardHistory(prev =>
+        prev.map(item => item.id === id ? { ...item, name: newName } : item)
+      );
+    } // NEW
     setEditingItem(null);
     setNewName("");
 
@@ -97,17 +113,40 @@ const History = () => {
     });
   };
 
-  const deleteItem = (type: string, id: string) => {
-    if (type === "summarizer") {
-      setSummarizerHistory(prev => prev.filter(item => item.id !== id));
-    } else if (type === "quiz") {
-      setQuizHistory(prev => prev.filter(item => item.id !== id));
-    }
+  const deleteItem = async (type: string, id: string) => {
+    try {
+      const res = await fetch(`http://localhost:8000/history/${type}/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
-    toast({
-      title: "Deleted",
-      description: "Item has been deleted successfully!",
-    });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.detail || "Failed to delete item");
+      }
+
+      if (type === "summarizer") {
+        setSummarizerHistory(prev => prev.filter(item => item.id !== id));
+      } else if (type === "quiz") {
+        setQuizHistory(prev => prev.filter(item => item.id !== id));
+      } else if (type === "flashcards") {
+        setFlashcardHistory(prev => prev.filter(item => item.id !== id));
+      } // NEW
+
+      toast({
+        title: "Deleted",
+        description: "Item has been deleted successfully!",
+      });
+    } catch (err) {
+      console.error("Delete failed", err);
+      toast({
+        title: "Delete failed",
+        description: "Unable to delete the item from the server.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDownload = async (type: string, id: string, name: string) => {
@@ -118,7 +157,13 @@ const History = () => {
         },
       });
       const data = await res.json();
-      const content = type === "quiz" ? data.quiz : data.summary;
+
+      let content = "";
+      if (type === "quiz") content = data.quiz;
+      else if (type === "summarizer") content = data.summary;
+      else if (type === "flashcards") {
+        content = (data.flashcards || []).map((fc: any, i: number) => `Q${i + 1}: ${fc.front}\nA: ${fc.back}`).join("\n\n");
+      }
 
       const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
@@ -210,7 +255,7 @@ const History = () => {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="summarizer" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-6">
             <TabsTrigger value="summarizer" className="flex items-center space-x-2">
               <Brain className="w-4 h-4" />
               <span>Summarizer</span>
@@ -218,6 +263,10 @@ const History = () => {
             <TabsTrigger value="quiz" className="flex items-center space-x-2">
               <HelpCircle className="w-4 h-4" />
               <span>Quiz</span>
+            </TabsTrigger>
+            <TabsTrigger value="flashcards" className="flex items-center space-x-2"> {/* NEW */}
+              <BookOpen className="w-4 h-4" />
+              <span>Flashcards</span>
             </TabsTrigger>
           </TabsList>
 
@@ -244,6 +293,20 @@ const History = () => {
               <CardContent className="space-y-4">
                 {quizHistory.map((item: any) => (
                   <HistoryCard key={item.id} item={item} type="quiz" icon={HelpCircle} />
+                ))}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="flashcards" className="space-y-4"> {/* NEW */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Flashcard History</CardTitle>
+                <CardDescription>View your previously generated flashcards</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {flashcardHistory.map((item: any) => (
+                  <HistoryCard key={item.id} item={item} type="flashcards" icon={BookOpen} />
                 ))}
               </CardContent>
             </Card>

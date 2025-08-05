@@ -29,3 +29,17 @@ async def save_quiz_history(user_id: str, file_name: str, quiz: str):
     }
     await history_collection.insert_one(entry)
 
+
+
+async def save_flashcard_history(user_id: str, file_name: str, flashcards: list):
+    doc = {
+        "user_id": user_id,
+        "type": "flashcards",
+        "file_name": file_name,
+        "flashcards": flashcards,
+        "timestamp": datetime.utcnow()
+    }
+    await history_collection.insert_one(doc)
+
+async def get_flashcard_history(user_id: str):
+    return await history_collection.find({"user_id": user_id, "type": "flashcards"}).to_list(length=100)

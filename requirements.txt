@@ -30,3 +30,5 @@ nltk
 httpx
 regex
 pytest
+langchain-mistralai
+pydantic[email]

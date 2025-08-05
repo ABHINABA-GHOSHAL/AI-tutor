@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form
+from fastapi import APIRouter, HTTPException, Depends, File, UploadFile, Form, Path
 from pydantic import BaseModel, EmailStr
 import os
 from database.__init__ import history_collection
@@ -13,11 +13,14 @@ from utils.auth_utils import (
 )
 from bson import ObjectId
 from fastapi.responses import JSONResponse
-from ml.query_engine import ingest_pdf_and_build_index, answer_query
+
 from ml.summarizer import summarize_text
 from ml.quiz_generator import generate_quiz_questions
 from ml.db import save_summary_history, get_user_history
 from ml.chat_engine import upload_and_index_pdf_for_chat, chat_with_ai
+from ml.flashcard_generator import generate_flashcards 
+from ml.db import save_flashcard_history, get_flashcard_history
+
 router = APIRouter()
 
 # =========================
@@ -62,9 +65,7 @@ async def login(request: LoginRequest):
         "name": user["name"]
     }
 
-# =========================
-# 📄 ML Routes
-# =========================
+
 
 @router.post("/upload")
 async def upload_pdf(file: UploadFile = File(...)):
@@ -91,7 +92,7 @@ async def summarize():
         key=os.path.getmtime
     )
 
-    print("📄 Latest file to summarize:", latest_file)
+    print(" Latest file to summarize:", latest_file)
 
     try:
         summary = summarize_text(latest_file)
@@ -101,15 +102,6 @@ async def summarize():
         raise HTTPException(status_code=500, detail="Summarization failed")
 
 
-
-@router.post("/ask")
-async def ask_question(query: str = Form(...), user=Depends(get_current_user)):
-    try:
-        user_id = str(user["_id"])
-        answer = answer_query(query, user_id)
-        return {"answer": answer}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error answering question: {str(e)}")
 
 @router.post("/quiz")
 async def quiz():
@@ -214,3 +206,86 @@ async def download_quiz(item_id: str, user=Depends(get_current_user)):
     if not doc:
         raise HTTPException(status_code=404, detail="Quiz not found")
     return {"quiz": doc["quiz"]}
+
+@router.delete("/history/{item_type}/{item_id}")
+async def delete_history_item(
+    item_type: str = Path(..., regex="^(summarizer|quiz)$"),
+    item_id: str = Path(...),
+    user=Depends(get_current_user)
+):
+    try:
+        result = await history_collection.delete_one({
+            "_id": ObjectId(item_id),
+            "user_id": str(user["_id"]),
+            "type": item_type
+        })
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Item not found or already deleted")
+        return {"message": f"{item_type.capitalize()} history item deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete item: {str(e)}")
+    
+
+
+@router.post("/generate_flashcards/")
+async def generate_flashcard_api(file: UploadFile = File(...), num_questions: int = Form(...)):
+    try:
+        upload_dir = "uploads"
+        os.makedirs(upload_dir, exist_ok=True)
+        file_path = os.path.join(upload_dir, file.filename)
+
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+
+        flashcards = generate_flashcards(file_path, num_cards=num_questions)
+        return {"flashcards": flashcards}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Flashcard generation failed: {str(e)}")
+    
+@router.post("/history/flashcards")
+async def save_flashcard_history_route(data: dict, user=Depends(get_current_user)):
+    try:
+        user_id = str(user["_id"])
+        file_name = data.get("file_name")
+        flashcards = data.get("flashcards")
+
+        if not file_name or not flashcards:
+            raise HTTPException(status_code=400, detail="Missing file_name or flashcards")
+
+        await save_flashcard_history(user_id, file_name, flashcards)
+        return {"message": "Flashcard history saved"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save flashcard history: {str(e)}")
+@router.get("/history/flashcards")
+async def get_flashcard_history_route(user=Depends(get_current_user)):
+    try:
+        user_id = str(user["_id"])
+        data = await get_flashcard_history(user_id)
+
+        cleaned = []
+        for item in data:
+            item["_id"] = str(item["_id"])
+            if "timestamp" in item:
+                item["timestamp"] = item["timestamp"].isoformat()
+            cleaned.append(item)
+
+        return {"history": cleaned}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch flashcard history: {str(e)}")
+
+
+@router.get("/history/flashcards/{item_id}")
+async def get_flashcards_by_id(item_id: str, user=Depends(get_current_user)):
+    from database.__init__ import history_collection
+    from bson import ObjectId
+
+    doc = await history_collection.find_one({
+        "_id": ObjectId(item_id),
+        "user_id": str(user["_id"]),
+        "type": "flashcards"
+    })
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Flashcards not found")
+
+    return {"flashcards": doc["flashcards"]}
