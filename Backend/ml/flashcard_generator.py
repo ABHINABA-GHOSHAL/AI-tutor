@@ -1,4 +1,4 @@
-# ml/flashcard_generator.py
+
 from ml.loader import load_pdf_chunks
 from langchain_mistralai import ChatMistralAI
 from langchain_core.messages import SystemMessage, HumanMessage

@@ -1,8 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.routes import router  # your route imports
+from fastapi.staticfiles import StaticFiles
+import os
+
+# Ensure uploads directory exists
+os.makedirs("uploads", exist_ok=True)
+
+# Serve the uploads folder at /uploads path
+
+
 
 app = FastAPI()
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # ✅ Add middleware BEFORE including routes
 app.add_middleware(

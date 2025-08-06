@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, MessageCircle, Send, Bot, User, Upload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Message {
   id: number;
@@ -68,7 +70,7 @@ const Chat = () => {
         ...prev,
         {
           id: messages.length + 2,
-          content: "❌ Error fetching response from AI.",
+          content: " Error fetching response from AI.",
           sender: "ai",
           timestamp: new Date(),
         },
@@ -102,9 +104,9 @@ const Chat = () => {
 
       const data = await res.json();
       console.log("Upload Response:", data);
-      alert("✅ PDF uploaded successfully for chat context.");
+      alert("PDF uploaded successfully for chat context.");
     } catch (err) {
-      alert("❌ Failed to upload PDF.");
+      alert(" Failed to upload PDF.");
       console.error(err);
     } finally {
       setUploading(false);
@@ -113,7 +115,7 @@ const Chat = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
-      {/* Header */}
+
       <header className="bg-card shadow-soft border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-16">
@@ -139,7 +141,7 @@ const Chat = () => {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card className="shadow-soft h-[600px] flex flex-col">
+        <Card className="shadow-soft h-[600px] flex flex-col overflow-hidden">
           <CardHeader>
             <CardTitle>Chat with AI Tutor</CardTitle>
             <CardDescription>
@@ -147,9 +149,9 @@ const Chat = () => {
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="flex-1 flex flex-col space-y-4">
+          <CardContent className="flex-1 flex flex-col space-y-4 overflow-hidden">
             {/* Messages */}
-            <ScrollArea className="flex-1 pr-4">
+            <ScrollArea className="flex-1 pr-4 overflow-auto">
               <div className="space-y-4">
                 {messages.map((msg) => (
                   <div key={msg.id} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
@@ -170,7 +172,12 @@ const Chat = () => {
                             : "bg-muted"
                         }`}
                       >
-                        <p className="text-sm">{msg.content}</p>
+                        <div
+                          className="text-sm break-words whitespace-pre-wrap font-mono"
+                          style={{ overflowWrap: "anywhere", whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                        >
+                          {msg.content}
+                        </div>
                         <p className="text-xs opacity-70 mt-1">{msg.timestamp.toLocaleTimeString()}</p>
                       </div>
                     </div>
@@ -195,7 +202,7 @@ const Chat = () => {
               </div>
             </ScrollArea>
 
-            {/* Upload + Input */}
+           
             <div className="flex gap-2 items-center">
               <label htmlFor="pdf-upload" className="cursor-pointer flex items-center px-3 py-2 border rounded bg-muted hover:bg-muted/70">
                 <Upload className="w-4 h-4 mr-2" />

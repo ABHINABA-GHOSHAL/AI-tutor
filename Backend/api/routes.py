@@ -27,6 +27,16 @@ router = APIRouter()
 # 🚀 Authentication Routes
 # =========================
 
+
+class UpdateProfileRequest(BaseModel):
+    name: str
+    education: str
+    date_of_birth: str
+    phone_number: str
+    mother_name: str
+    father_name: str
+    profile_picture: str
+
 class SignupRequest(BaseModel):
     name: str
     email: EmailStr
@@ -289,3 +299,37 @@ async def get_flashcards_by_id(item_id: str, user=Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Flashcards not found")
 
     return {"flashcards": doc["flashcards"]}
+
+
+
+@router.get("/me")
+async def get_profile(user=Depends(get_current_user)):
+    return {
+        "name": user["name"],
+        "email": user["email"],
+        "profile_pic": user.get("profile_pic", "")
+    }
+
+@router.put("/update-profile")
+async def update_profile(data: dict, user=Depends(get_current_user)):
+    update_fields = {}
+    if "name" in data:
+        update_fields["name"] = data["name"]
+    if "password" in data and data["password"]:
+        from utils.auth_utils import hash_password
+        update_fields["hashed_password"] = hash_password(data["password"])
+    if "profile_pic" in data:
+        update_fields["profile_pic"] = data["profile_pic"]
+
+    if update_fields:
+        from database.__init__ import users_collection
+        await users_collection.update_one({"_id": user["_id"]}, {"$set": update_fields})
+    return {"message": "Profile updated"}
+
+
+@router.post("/upload-profile-pic")
+async def upload_pic(file: UploadFile = File(...), user=Depends(get_current_user)):
+    path = f"uploads/profile_{user['_id']}.png"
+    with open(path, "wb") as f:
+        f.write(await file.read())
+    return {"url": f"http://localhost:8000/{path}"}

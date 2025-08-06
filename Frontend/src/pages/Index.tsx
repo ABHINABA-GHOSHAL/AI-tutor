@@ -117,11 +117,7 @@ const Index = () => {
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>
                 </Link>
-                <Link to="/dashboard">
-                  <Button variant="outline" size="lg" className="text-lg px-8">
-                    View Demo
-                  </Button>
-                </Link>
+                
               </div>
 
               <div className="space-y-3">
@@ -186,8 +182,7 @@ const Index = () => {
             Ready to Revolutionize Your Learning?
           </h2>
           <p className="text-xl text-white/90 mb-8 leading-relaxed">
-            Join thousands of students already learning smarter with AI Tutor. 
-            Upload your first document and experience the future of education.
+            Learn Smarter with AI-Tutor
           </p>
           <Link to="/signup">
             <Button variant="hero" size="lg" className="text-lg px-8 bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30">
@@ -210,7 +205,7 @@ const Index = () => {
             </span>
           </div>
           <p className="text-muted-foreground">
-            © 2024 AI Tutor. Transform your learning experience with artificial intelligence.
+            © 2025 AI Tutor. Made by AbHinaba Ghoshal
           </p>
         </div>
       </footer>

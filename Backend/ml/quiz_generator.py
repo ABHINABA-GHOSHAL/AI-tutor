@@ -31,4 +31,4 @@ Content:
     ]
 
     response = llm.invoke(messages)
-    return response.content.strip().split("\n\n")  # or parse as needed
+    return response.content.strip().split("\n\n")  
